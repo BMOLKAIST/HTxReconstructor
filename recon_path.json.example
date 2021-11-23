@@ -1,0 +1,12 @@
+{
+    "PSF_path": "/path/of/PSFfile.mat",
+    "data_group":[
+        {
+            "path" : "/path/of/data1"
+        },
+        {
+            "path" : "/path/of/data2",
+            "background": "/path/of/data2/data2_dir/bgImages"
+        }
+    ]
+}

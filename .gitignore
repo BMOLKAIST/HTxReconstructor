@@ -1,3 +1,5 @@
+.vscode
+recon_path.json
 *.asv
 *.mat
 *.PSF

@@ -1,52 +1,67 @@
-clear; clc;
-
-% custom variable
-PSFfile='PSF_water_1464_dealias.mat';
-data_dir='C:\Users\labdo\Desktop\20211005.135414.689.height_1mm_chip_bacteria-005';
-
 %% initialization
-% load functions
+clear; clc;
 head_dir=fileparts(matlab.desktop.editor.getActiveFilename);
 addpath(genpath(fullfile(head_dir,'supplementary_codes')));
-% load PSF
+
+%% read recon_path.json and load PSF
+path_info=loadJSON('recon_path.json');
+
+% PSF information
 % lambda: mean wavelength of illumination light(unit:um)
 % n_m: RI of media
 % NA_cond: NA of condensor lens
 % NA_obj: NA of objective lens
 % PSF1: Four PSF for each patterns
 %       The size means (# of patterns)x(x axis)x(y axis)x(z axis x 3)
-load(PSFfile);
+load(path_info.PSF_path,'PSF1','n_m');
+PSF_info=struct('PSF',PSF1,'n_m',n_m);
 
 %% reconstruction
-cd(data_dir);
-filelist=dir;
-reconstruction_list=filelist(~startsWith({filelist.name},'.'));
-
-% find dir containing bgIamges and load the background
-background_dir=dir('*/bgImages/');
-background_loaded=readPepsidata(background_dir(1).folder);
-
-for tile_num=1:length(reconstruction_list)
-    disp(['reconstruction in progress ... tile no. ',num2str(tile_num), ' out of ', num2str(length(reconstruction_list))])
-    recon_dir=reconstruction_list(tile_num);
-
-    %%% dealiasing
-    sample_loaded=readPepsidata([recon_dir.name,'/data3d']);
-
-    [RI] = processing_dealias2_JY3(sample_loaded, background_loaded, PSF1); % scattering potential 
-    data = n_m*sqrt(1-imag(RI));
-    data = flipud(data);
-    %figure, orthosliceViewer(flipud(Reconimg2),'Scale',[0.162 0.162 0.73]),colormap gray, axis image
-
-    %save as mat file
-    savepath = strcat(recon_dir.name,'\',recon_dir.name,'_k_included.mat');
-    save(savepath, 'data');
+for data_info=path_info.data_group
+    reconstruct(data_info,PSF_info,head_dir)
 end
 
-% move back to original location
-cd(head_dir);
+%% main functions
+function reconstruct(data_info,PSF_info,head_dir)
+    % get data path
+    data_path=data_info.path;
+    
+    % move to working directory
+    cd(data_path);
+    filelist=dir;
+    reconstruction_list=filelist(~startsWith({filelist.name},'.'));
+    
+    % get background path and load background images
+    if isfield(data_info,'background')
+        background_path=data_info.background;
+    else
+        background_dirs=dir('*/bgImages/');
+        background_path=background_dirs(1).folder;
+    end
+    background_loaded=readPepsidata(background_path);
+    
+    % reconstruction
+    for tile_num=1:length(reconstruction_list)
+        disp(['reconstruction in progress ... tile no. ',num2str(tile_num), ' out of ', num2str(length(reconstruction_list))])
+        recon_dir=reconstruction_list(tile_num);
+    
+        %%% dealiasing
+        sample_loaded=readPepsidata([recon_dir.name,'/data3d']);
+    
+        [RI] = processing_dealias2_JY3(sample_loaded, background_loaded, PSF_info.PSF); % scattering potential 
+        data = PSF_info.n_m*sqrt(1-imag(RI));
+        data = flipud(data);
+        %figure, orthosliceViewer(flipud(Reconimg2),'Scale',[0.162 0.162 0.73]),colormap gray, axis image
+    
+        %save as mat file
+        savepath = strcat(recon_dir.name,'\',recon_dir.name,'_k_included.mat');
+        save(savepath, 'data');
+    end
 
-%%
+    % move back to original location
+    cd(head_dir);
+end
+
 function data = readPepsidata(datadir)
     assert(isfolder(datadir), 'Given path should be directory');
     data=loading_stack_notiff_JY2(datadir); % generate (4(pattern) x y z) dimension
