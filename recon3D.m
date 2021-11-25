@@ -13,8 +13,7 @@ path_info=loadJSON('recon_path.json');
 % NA_obj: NA of objective lens
 % PSF1: Four PSF for each patterns
 %       The size means (# of patterns)x(x axis)x(y axis)x(z axis x 3)
-load(path_info.PSF_path,'PSF1','n_m');
-PSF_info=struct('PSF',PSF1,'n_m',n_m);
+PSF_info=load(path_info.PSF_path,'PSF1','n_m','lambda','NA_cond','NA_obj');
 
 %% reconstruction
 for data_info=path_info.data_group
@@ -48,13 +47,13 @@ function reconstruct(data_info,PSF_info,head_dir)
         %%% dealiasing
         sample_loaded=readPepsidata([recon_dir.name,'/data3d']);
     
-        [RI] = processing_dealias2_JY3(sample_loaded, background_loaded, PSF_info.PSF); % scattering potential 
+        [RI] = process_dealias(sample_loaded, background_loaded, PSF_info); % scattering potential 
         data = PSF_info.n_m*sqrt(1-imag(RI));
         data = flipud(data);
         %figure, orthosliceViewer(flipud(Reconimg2),'Scale',[0.162 0.162 0.73]),colormap gray, axis image
     
         %save as mat file
-        savepath = strcat(recon_dir.name,'\',recon_dir.name,'_k_included.mat');
+        savepath = strcat(recon_dir.name,'\',recon_dir.name,'.mat');
         save(savepath, 'data');
     end
 
@@ -64,9 +63,9 @@ end
 
 function data = readPepsidata(datadir)
     assert(isfolder(datadir), 'Given path should be directory');
-    data=loading_stack_notiff_JY2(datadir); % generate (4(pattern) x y z) dimension
-    data=flip_stack(data);          % loading sample and background similarly to original version
-    data=data(:,:,237:237+1463,:);  % crop image
+    data=loading_stack_notiff(datadir); % generate (4(pattern) x y z) dimension
+    data=flip_stack(data);              % loading sample and background similarly to original version
+    data=data(:,:,237:237+1463,:);      % crop image
 end
 
     
